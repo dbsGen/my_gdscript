@@ -35,11 +35,6 @@
 #include "os/thread.h"
 #include "pair.h"
 
-/// ####### need remove
-#include "../../core/variant.h"
-#include "../../core/object.h"
-#include "../../core/reference.h"
-
 class GDInstance;
 class GDScript;
 

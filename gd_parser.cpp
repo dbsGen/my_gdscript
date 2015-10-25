@@ -31,8 +31,6 @@
 #include "io/resource_loader.h"
 #include "os/file_access.h"
 #include "script_language.h"
-#include "../../core/string_db.h"
-#include "../../core/print_string.h"
 
 template<class T>
 T* GDParser::alloc_node() {

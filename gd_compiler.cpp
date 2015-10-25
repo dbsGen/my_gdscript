@@ -28,7 +28,6 @@
 /*************************************************************************/
 #include "gd_compiler.h"
 #include "gd_script.h"
-#include "../../core/script_language.h"
 
 
 void GDCompiler::_set_error(const String& p_error,const GDParser::Node *p_node) {

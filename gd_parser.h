@@ -33,10 +33,6 @@
 #include "gd_functions.h"
 #include "map.h"
 #include "object.h"
-#include "../../core/string_db.h"
-#include "../../core/map.h"
-#include "../../core/variant.h"
-#include "../../core/print_string.h"
 
 class GDParser {
 public:

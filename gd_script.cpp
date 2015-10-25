@@ -713,13 +713,48 @@ Variant GDFunction::call(GDInstance *p_instance, const Variant **p_args, int p_a
 				}
 
 				Variant::CallError err;
-				if (call_ret) {
+				while(true) {
+					if (*methodname == StringName("connect") && argc > 1) {
+						GDFunctionObject *func_object = ((Object *) (*argptrs[1]))->cast_to<GDFunctionObject>();
+						if (func_object && func_object->is_valid()) {
+							Variant **args = (Variant **)memalloc(sizeof(Variant*)*(argc+1));
+							Variant target(func_object->instance->owner);
+							Variant fn(func_object->get_name());
 
-					GET_VARIANT_PTR(ret,argc);
-					*ret = base->call(*methodname,(const Variant**)argptrs,argc,err);
-				} else {
+							for(int i=0;i<argc;i++) {
+								if (i < 1) {
+									args[i] = argptrs[i];
+								}else if (i == 1) {
+									args[i] = &target;
+									args[i+1] = &fn;
+								}else {
+									args[i+1] = argptrs[i];
+								}
+							}
 
-					base->call(*methodname,(const Variant**)argptrs,argc,err);
+
+							if (call_ret) {
+
+								GET_VARIANT_PTR(ret,argc);
+								*ret = base->call(*methodname,(const Variant**)args,argc+1,err);
+							} else {
+
+								base->call(*methodname,(const Variant**)args,argc+1,err);
+							}
+							memfree(args);
+							break;
+						}
+					}
+
+					if (call_ret) {
+
+						GET_VARIANT_PTR(ret,argc);
+						*ret = base->call(*methodname,(const Variant**)argptrs,argc,err);
+					} else {
+
+						base->call(*methodname,(const Variant**)argptrs,argc,err);
+					}
+					break;
 				}
 
 				if (err.error!=Variant::CallError::CALL_OK) {
@@ -1488,18 +1523,6 @@ Variant GDInlineFunctionObject::apply(const Variant **p_args, int p_argcount, Va
 
 GDInlineFunctionObject::~GDInlineFunctionObject() {
 	instance->remove_inline_function(this);
-}
-
-void GDSignalObject::_bind_methods() {
-	ObjectTypeDB::bind_method(_MD("connect", "function:GDFunctionObject", "binds", "flags"), &GDSignalObject::connect, DEFVAL(Vector<Variant>()), DEFVAL(0));
-	ObjectTypeDB::bind_method(_MD("get_instance"), &GDSignalObject::get_instance);
-	ObjectTypeDB::bind_method(_MD("get_signal_name"), &GDSignalObject::get_signal_name);
-}
-void GDSignalObject::connect(const Ref<GDFunctionObject> &function,const Vector<Variant>& p_binds,uint32_t p_flags) {
-	ERR_FAIL_COND(!instance_object);
-	ERR_FAIL_COND(!function->is_valid());
-	if (function != NULL)
-		instance_object->connect(signal_name, function->instance->owner, function->get_name(), p_binds, p_flags);
 }
 
 ///////////////////////////
@@ -2386,19 +2409,6 @@ bool GDInstance::get(const StringName& p_name, Variant &r_ret) const {
 			}
 		}
 		sptr = sptr->_base;
-	}
-	{
-		List<MethodInfo> signals;
-		owner->get_signal_list(&signals);
-		for (List<MethodInfo>::Element *E = signals.front(); E; E=E->next()) {
-			if (StringName(E->get().name) == p_name) {
-				Ref<GDSignalObject> signal = memnew(GDSignalObject);
-				signal->instance_object = owner;
-				signal->signal_name = p_name;
-				r_ret = Variant(signal);
-				return true;
-			}
-		}
 	}
 
 	return false;

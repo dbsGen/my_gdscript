@@ -222,6 +222,7 @@ protected:
 	GDInstance *instance;
 	bool enable;
 	friend class GDInstance;
+	friend class GDFunction;
 	friend class GDSignalObject;
 	static void _bind_methods();
 
@@ -254,24 +255,6 @@ public:
 	virtual Variant apply(const Variant** p_args,int p_argcount,Variant::CallError &r_error);
 
 	~GDInlineFunctionObject();
-};
-
-class GDSignalObject : public Reference {
-	OBJ_TYPE(GDSignalObject,Reference);
-
-	Object *instance_object;
-	StringName signal_name;
-friend class GDFunctionObject;
-friend class GDInstance;
-protected:
-
-	static void _bind_methods();
-
-public:
-
-	_FORCE_INLINE_ Variant get_instance() {return Variant(instance_object);}
-	_FORCE_INLINE_ const StringName& get_signal_name() {return signal_name;}
-	void connect(const Ref<GDFunctionObject> &function,const Vector<Variant>& p_binds=Vector<Variant>(),uint32_t p_flags=0);
 };
 
 class GDNativeClass : public Reference {

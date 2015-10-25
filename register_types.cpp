@@ -124,7 +124,6 @@ void register_gdscript_types() {
 	ObjectTypeDB::register_type<GDScript>();
 	ObjectTypeDB::register_virtual_type<GDFunctionObject>();
 	ObjectTypeDB::register_virtual_type<GDInlineFunctionObject>();
-	ObjectTypeDB::register_virtual_type<GDSignalObject>();
 	ObjectTypeDB::register_virtual_type<GDFunctionState>();
 
 	script_language_gd=memnew( GDScriptLanguage );

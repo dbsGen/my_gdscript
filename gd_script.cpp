@@ -79,9 +79,15 @@ Variant *GDFunction::_get_variant(int p_address,GDInstance *p_instance,GDScript 
 				r_error="Cannot access member without instance.";
 				return NULL;
 			}
+			ERR_FAIL_INDEX_V(address,p_script->function_indices.size(),NULL);
 
 			GDFunction *self_func = const_cast<GDFunction*>(this);
-			self_func->cache.push_back(Variant(p_instance->get_function(p_script->function_indices[address])));
+			Ref<GDFunctionObject> func = p_instance->get_function(p_script->function_indices[address]);
+			if (func == NULL) {
+				r_error = "Founction not found.";
+				return NULL;
+			}
+			self_func->cache.push_back(Variant(func));
 			return &self_func->cache[cache.size()-1];
 		} break;
 		case ADDR_TYPE_INLINE_FUNCTION: {
@@ -89,9 +95,14 @@ Variant *GDFunction::_get_variant(int p_address,GDInstance *p_instance,GDScript 
 				r_error="Cannot access member without instance.";
 				return NULL;
 			}
-			ERR_FAIL_INDEX_V(address,_stack_size,NULL);
+			ERR_FAIL_INDEX_V(address,p_script->function_indices.size(),NULL);
 			GDFunction *self_func = const_cast<GDFunction*>(this);
-			self_func->cache.push_back(Variant(p_instance->get_inline_function(p_script->function_indices[address], p_stack, _stack_size)));
+			Ref<GDInlineFunctionObject> func = p_instance->get_inline_function(p_script->function_indices[address], p_stack, _stack_size);
+			if (func == NULL) {
+				r_error = "Inline function not found.";
+				return NULL;
+			}
+			self_func->cache.push_back(Variant(func));
 			return &self_func->cache[cache.size()-1];
 		} break;
 		case ADDR_TYPE_CLASS_CONSTANT: {
@@ -2395,20 +2406,24 @@ bool GDInstance::get(const StringName& p_name, Variant &r_ret) const {
 }
 
 Ref<GDFunctionObject> GDInstance::get_function(StringName p_name) {
-	const Map<StringName, Ref<GDFunctionObject> >::Element *E = functions.find(p_name);
-	if (E) {
-		return E->get();
-	}else {
-		const Map<StringName,GDFunction>::Element *E_ = script->member_functions.find(p_name);
-		if (E_) {
-			const GDFunction *gdfunc = &E_->get();
-			if (gdfunc->_inline) return NULL;
-			Ref<GDFunctionObject> func = memnew(GDFunctionObject);
-			func->instance = const_cast<GDInstance*>(this);
-			func->function = const_cast<GDFunction*>(gdfunc);
-			functions.insert(p_name, Variant(func));
-			return functions[p_name];
+	const GDScript *sptr=script.ptr();
+	while (sptr) {
+		const Map<StringName, Ref<GDFunctionObject> >::Element *E = functions.find(p_name);
+		if (E) {
+			return E->get();
+		} else {
+			const Map<StringName, GDFunction>::Element *E_ = script->member_functions.find(p_name);
+			if (E_) {
+				const GDFunction *gdfunc = &E_->get();
+				if (gdfunc->_inline) return NULL;
+				Ref<GDFunctionObject> func = memnew(GDFunctionObject);
+				func->instance = const_cast<GDInstance *>(this);
+				func->function = const_cast<GDFunction *>(gdfunc);
+				functions.insert(p_name, Variant(func));
+				return functions[p_name];
+			}
 		}
+		sptr = sptr->_base;
 	}
 	if (owner->has_method(p_name)) {
 		Ref<GDNativeFunctionObject> func = memnew(GDNativeFunctionObject);
@@ -2421,20 +2436,24 @@ Ref<GDFunctionObject> GDInstance::get_function(StringName p_name) {
 }
 
 Ref<GDInlineFunctionObject>  GDInstance::get_inline_function(StringName p_name, Variant *p_stack, int p_stack_size) {
-	const Map<StringName,GDFunction>::Element *E_ = script->member_functions.find(p_name);
-	if (E_) {
-		Ref<GDInlineFunctionObject> func = memnew(GDInlineFunctionObject);
-		func->instance = const_cast<GDInstance*>(this);
-		const GDFunction *gdfunc = &E_->get();
-		func->function = const_cast<GDFunction*>(gdfunc);
+	const GDScript *sptr=script.ptr();
+	while (sptr) {
+		const Map<StringName,GDFunction>::Element *E_ = sptr->member_functions.find(p_name);
+		if (E_) {
+			Ref<GDInlineFunctionObject> func = memnew(GDInlineFunctionObject);
+			func->instance = const_cast<GDInstance*>(this);
+			const GDFunction *gdfunc = &E_->get();
+			func->function = const_cast<GDFunction*>(gdfunc);
 
-		for (int i = 0; i < gdfunc->inline_variants.size(); ++i) {
-			int idx = gdfunc->inline_variants[i];
-			if (p_stack_size <= idx) return NULL;
-			func->variants.push_back(Variant(p_stack[idx]));
+			for (int i = 0; i < gdfunc->inline_variants.size(); ++i) {
+				int idx = gdfunc->inline_variants[i];
+				if (p_stack_size <= idx) return NULL;
+				func->variants.push_back(Variant(p_stack[idx]));
+			}
+			inline_functions.push_back(func.ptr());
+			return Variant(func);
 		}
-		inline_functions.push_back(func.ptr());
-		return Variant(func);
+		sptr = sptr->_base;
 	}
 	return NULL;
 }

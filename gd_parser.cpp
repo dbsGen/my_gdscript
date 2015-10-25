@@ -1903,12 +1903,12 @@ GDParser::Node* GDParser::_parse_function(ClassNode *p_class, FunctionNode *p_fu
 		String current_name = String(p_func->name);
 		if (tokenizer->get_token() == GDTokenizer::TK_IDENTIFIER) {
 			StringName mn = tokenizer->get_token_identifier();
-			name = StringName("@" + current_name + "@" + mn);
+			name = StringName("@" + current_name + "@" + mn + "@" + itos(tokenizer->get_token_line(-1)) + "@" + self_path);
 			if (has_identifier) *has_identifier = true;
 			if (identifier) *identifier = mn;
 			tokenizer->advance();
 		}else {
-			name = StringName("@" + current_name + "@" + itos(tokenizer->get_token_line(-1)));
+			name = StringName("@" + current_name + "@" + itos(tokenizer->get_token_line(-1)) + self_path);
 		}
 
 	}else {

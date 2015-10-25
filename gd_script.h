@@ -94,7 +94,6 @@ public:
 		ADDR_TYPE_NIL=8,
 		ADDR_TYPE_FUNCTION=9,
 		ADDR_TYPE_INLINE_FUNCTION=10,
-		ADDR_TYPE_STACK_CALL=10,
 	};
 
     struct StackDebug {

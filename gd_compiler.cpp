@@ -1418,7 +1418,6 @@ Error GDCompiler::_parse_class(GDScript *p_script,GDScript *p_owner,const GDPars
 	p_script->tool=p_class->tool;
 	p_script->name=p_class->name;
 
-
 	int index_from=0;
 	Ref<GDNativeClass> native;
 
@@ -1540,6 +1539,7 @@ Error GDCompiler::_parse_class(GDScript *p_script,GDScript *p_owner,const GDPars
 			p_script->base=script;
 			p_script->_base=p_script->base.ptr();
 			p_script->member_indices=script->member_indices;
+			p_script->function_indices=script->function_indices;
 
 		} else if (native.is_valid()) {
 
@@ -1648,10 +1648,6 @@ Error GDCompiler::_parse_class(GDScript *p_script,GDScript *p_owner,const GDPars
 	bool has_initializer=false;
 	for(int i=0;i<p_class->functions.size();i++) {
 		StringName name = p_class->functions[i]->name;
-		if (p_script->function_indices.find(name) >= 0) {
-			_set_error("Member '"+name+"' already exists (in current or parent class)",p_class);
-			return ERR_ALREADY_EXISTS;
-		}
 		p_script->function_indices.push_back(name);
 	}
 	for(int i=0;i<p_class->functions.size();i++) {
@@ -1667,10 +1663,6 @@ Error GDCompiler::_parse_class(GDScript *p_script,GDScript *p_owner,const GDPars
 
 	for(int i=0;i<p_class->static_functions.size();i++) {
 		StringName name = p_class->static_functions[i]->name;
-		if (p_script->function_indices.find(name) >= 0) {
-			_set_error("Member '"+name+"' already exists (in current or parent class)",p_class);
-			return ERR_ALREADY_EXISTS;
-		}
 		p_script->function_indices.push_back(name);
 	}
 	for(int i=0;i<p_class->static_functions.size();i++) {

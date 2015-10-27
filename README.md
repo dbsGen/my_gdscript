@@ -3,7 +3,7 @@ Some improvements of gdscript.
     func _ready():
       
     	# Easier connection
-    	self.connect("renamed", on_renamed)
+    	self.renamed.connect(on_renamed)
     	
     	var hello = "hello"
     	# lambda expressions

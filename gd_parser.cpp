@@ -500,7 +500,7 @@ GDParser::Node* GDParser::_parse_expression(Node *p_parent,bool p_static,bool p_
 				expr = id;
 
 				if (current_block->outer_stack(identifier) && current_function) {
-					InlineFunctionNode *in = dynamic_cast<InlineFunctionNode*>(current_function);
+					LambdaFunctionNode *in = dynamic_cast<LambdaFunctionNode*>(current_function);
 					if (in) in->insert_require(identifier);
 				}
 			}
@@ -1564,7 +1564,7 @@ void GDParser::_parse_block(BlockNode *p_block,bool p_static) {
 				op->arguments.push_back(assigned);
 				p_block->statements.push_back(op);
 
-				if (assigned->type != Node::TYPE_INLINE_FUNCTION && !_end_statement()) {
+				if (assigned->type != Node::TYPE_LAMBDA_FUNCTION && !_end_statement()) {
 					_set_error("Expected end of statement (var)");
 					return;
 				}
@@ -2089,7 +2089,7 @@ GDParser::Node* GDParser::_parse_function(ClassNode *p_class, FunctionNode *p_fu
 	FunctionNode *function;
 	if (p_func && current_block) {
 		block->parent_block = current_block;
-		InlineFunctionNode *f = alloc_node<InlineFunctionNode>();
+		LambdaFunctionNode *f = alloc_node<LambdaFunctionNode>();
 		f->parent = p_func;
 		function = f;
 	}else {

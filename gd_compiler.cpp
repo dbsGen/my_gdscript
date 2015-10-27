@@ -257,8 +257,8 @@ int GDCompiler::_parse_expression(CodeGen& codegen,const GDParser::Node *p_expre
 
 
 		} break;
-		case GDParser::Node::TYPE_INLINE_FUNCTION: {
-			const GDParser::InlineFunctionNode *in = static_cast<const GDParser::InlineFunctionNode*>(p_expression);
+		case GDParser::Node::TYPE_LAMBDA_FUNCTION: {
+			const GDParser::LambdaFunctionNode *in = static_cast<const GDParser::LambdaFunctionNode*>(p_expression);
 			if (codegen.script->function_indices.find(in->name) >= 0) {
 				if (!function_variants.has(in->name)) {
 					function_variants[in->name] = Vector<int>();
@@ -271,7 +271,7 @@ int GDCompiler::_parse_expression(CodeGen& codegen,const GDParser::Node *p_expre
 						list.push_back(codegen.stack_identifiers[key]);
 				}
 				int idx = codegen.script->function_indices.find(in->name);
-				return idx | (GDFunction::ADDR_TYPE_INLINE_FUNCTION<<GDFunction::ADDR_BITS);
+				return idx | (GDFunction::ADDR_TYPE_LAMBDA_FUNCTION<<GDFunction::ADDR_BITS);
 			}
 		} break;
 		case GDParser::Node::TYPE_CONSTANT: {
@@ -1227,7 +1227,7 @@ Error GDCompiler::_parse_function(GDScript *p_script,const GDParser::ClassNode *
 #endif
 		}
 		stack_level=p_func->arguments.size();
-		if (const GDParser::InlineFunctionNode *infunc = dynamic_cast<const GDParser::InlineFunctionNode*>(p_func)) {
+		if (const GDParser::LambdaFunctionNode *infunc = dynamic_cast<const GDParser::LambdaFunctionNode*>(p_func)) {
 			for (int i = 0; i < infunc->require_keys.size(); ++i) {
 				codegen.add_stack_identifier(infunc->require_keys[i],stack_level+i);
 			}
@@ -1307,7 +1307,7 @@ Error GDCompiler::_parse_function(GDScript *p_script,const GDParser::ClassNode *
 
 
 	if (function_variants.has(func_name)) {
-		gdfunc->inline_variants=function_variants[func_name];
+		gdfunc->lambda_variants=function_variants[func_name];
 	}
 
 #ifdef TOOLS_ENABLED
@@ -1372,7 +1372,7 @@ Error GDCompiler::_parse_function(GDScript *p_script,const GDParser::ClassNode *
 	gdfunc->_call_size=codegen.call_max;
 	gdfunc->name=func_name;
 	gdfunc->_script=p_script;
-	gdfunc->_inline=p_func?(p_func->type==GDParser::Node::TYPE_INLINE_FUNCTION):false;
+	gdfunc->_lambda=p_func?(p_func->type==GDParser::Node::TYPE_LAMBDA_FUNCTION):false;
 	gdfunc->source=source;
 
 #ifdef DEBUG_ENABLED

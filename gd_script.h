@@ -88,7 +88,7 @@ public:
 		ADDR_TYPE_GLOBAL=7,
 		ADDR_TYPE_NIL=8,
 		ADDR_TYPE_FUNCTION=9,
-		ADDR_TYPE_INLINE_FUNCTION=10,
+		ADDR_TYPE_LAMBDA_FUNCTION=10,
 	};
 
     struct StackDebug {
@@ -119,7 +119,7 @@ friend class GDInstance;
 	int _call_size;
 	int _initial_line;
 	bool _static;
-	bool _inline;
+	bool _lambda;
 	GDScript *_script;
 
 	StringName name;
@@ -127,7 +127,7 @@ friend class GDInstance;
 	Vector<StringName> global_names;
 	Vector<int> default_arguments;
 	Vector<int> code;
-	Vector<int> inline_variants;
+	Vector<int> lambda_variants;
 #ifdef DEBUG_ENABLED
 	CharString func_cname;
 	const char*_func_cname;
@@ -247,14 +247,14 @@ public:
 	virtual Variant apply(const Variant** p_args,int p_argcount,Variant::CallError &r_error);
 };
 
-class GDInlineFunctionObject : public GDFunctionObject {
-	OBJ_TYPE(GDInlineFunctionObject,GDFunctionObject);
+class GDLambdaFunctionObject : public GDFunctionObject {
+	OBJ_TYPE(GDLambdaFunctionObject,GDFunctionObject);
 	friend class GDInstance;
 	Vector<Variant> variants;
 public:
 	virtual Variant apply(const Variant** p_args,int p_argcount,Variant::CallError &r_error);
 
-	~GDInlineFunctionObject();
+	~GDLambdaFunctionObject();
 };
 
 class GDNativeClass : public Reference {
@@ -407,7 +407,7 @@ class GDInstance : public ScriptInstance {
 friend class GDScript;
 friend class GDFunction;
 friend class GDFunctions;
-friend class GDInlineFunctionObject;
+friend class GDLambdaFunctionObject;
 friend class GDNativeFunctionObject;
 friend class GDSignalObject;
 
@@ -415,13 +415,13 @@ friend class GDSignalObject;
 	Ref<GDScript> script;
 	Vector<Variant> members;
 	Map<StringName, Ref<GDFunctionObject> > functions;
-	Vector< GDInlineFunctionObject* > inline_functions;
+	Vector< GDLambdaFunctionObject* > lambda_functions;
 	bool base_ref;
 
 	void _ml_call_reversed(GDScript *sptr,const StringName& p_method,const Variant** p_args,int p_argcount);
 	Ref<GDFunctionObject> get_function(StringName p_name);
-	Ref<GDInlineFunctionObject> get_inline_function(StringName p_name, Variant *p_stack, int p_stack_size);
-	void remove_inline_function( GDInlineFunctionObject *func) {inline_functions.erase(func);}
+	Ref<GDLambdaFunctionObject> get_lambda_function(StringName p_name, Variant *p_stack, int p_stack_size);
+	void remove_lambda_function( GDLambdaFunctionObject *func) {lambda_functions.erase(func);}
 public:
 
 	virtual bool set(const StringName& p_name, const Variant& p_value);

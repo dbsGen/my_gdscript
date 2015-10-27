@@ -90,16 +90,16 @@ Variant *GDFunction::_get_variant(int p_address,GDInstance *p_instance,GDScript 
 			self_func->cache.push_back(Variant(func));
 			return &self_func->cache[cache.size()-1];
 		} break;
-		case ADDR_TYPE_INLINE_FUNCTION: {
+		case ADDR_TYPE_LAMBDA_FUNCTION: {
 			if (!p_instance) {
 				r_error="Cannot access member without instance.";
 				return NULL;
 			}
 			ERR_FAIL_INDEX_V(address,p_script->function_indices.size(),NULL);
 			GDFunction *self_func = const_cast<GDFunction*>(this);
-			Ref<GDInlineFunctionObject> func = p_instance->get_inline_function(p_script->function_indices[address], p_stack, _stack_size);
+			Ref<GDLambdaFunctionObject> func = p_instance->get_lambda_function(p_script->function_indices[address], p_stack, _stack_size);
 			if (func == NULL) {
-				r_error = "Inline function not found.";
+				r_error = "Lambda function not found.";
 				return NULL;
 			}
 			self_func->cache.push_back(Variant(func));
@@ -288,12 +288,12 @@ Variant GDFunction::call(GDInstance *p_instance, const Variant **p_args, int p_a
 				for(;i<p_argcount;i++)
 					memnew_placement(&stack[i],Variant(*p_args[i]));
 				if (p_requires_args) {
-					for(int j = 0, t = inline_variants.size();j<t;i++,j++) {
+					for(int j = 0, t = lambda_variants.size();j<t;i++,j++) {
 						memnew_placement(&stack[i+j], Variant(*p_requires_args[j]));
 					}
 				}
 				else
-					for(int j = 0, t = inline_variants.size();j<t;i++,j++)
+					for(int j = 0, t = lambda_variants.size();j<t;i++,j++)
 						memnew_placement(&stack[i+j], Variant);
 				for(;i<(_call_size+_stack_size);i++)
 					memnew_placement(&stack[i],Variant);
@@ -1507,7 +1507,7 @@ Variant GDNativeFunctionObject::apply(const Variant **p_args, int p_argcount, Va
 	return instance->owner->call(method_name, p_args, p_argcount, r_error);
 }
 
-Variant GDInlineFunctionObject::apply(const Variant **p_args, int p_argcount, Variant::CallError &r_error) {
+Variant GDLambdaFunctionObject::apply(const Variant **p_args, int p_argcount, Variant::CallError &r_error) {
 	ERR_FAIL_COND_V(!enable, Variant());
 
 	int t = variants.size();
@@ -1521,8 +1521,8 @@ Variant GDInlineFunctionObject::apply(const Variant **p_args, int p_argcount, Va
 	return ret;
 }
 
-GDInlineFunctionObject::~GDInlineFunctionObject() {
-	instance->remove_inline_function(this);
+GDLambdaFunctionObject::~GDLambdaFunctionObject() {
+	instance->remove_lambda_function(this);
 }
 
 ///////////////////////////
@@ -2425,7 +2425,7 @@ Ref<GDFunctionObject> GDInstance::get_function(StringName p_name) {
 			const Map<StringName, GDFunction>::Element *E_ = script->member_functions.find(p_name);
 			if (E_) {
 				const GDFunction *gdfunc = &E_->get();
-				if (gdfunc->_inline) return NULL;
+				if (gdfunc->_lambda) return NULL;
 				Ref<GDFunctionObject> func = memnew(GDFunctionObject);
 				func->instance = const_cast<GDInstance *>(this);
 				func->function = const_cast<GDFunction *>(gdfunc);
@@ -2445,22 +2445,22 @@ Ref<GDFunctionObject> GDInstance::get_function(StringName p_name) {
 	return NULL;
 }
 
-Ref<GDInlineFunctionObject>  GDInstance::get_inline_function(StringName p_name, Variant *p_stack, int p_stack_size) {
+Ref<GDLambdaFunctionObject>  GDInstance::get_lambda_function(StringName p_name, Variant *p_stack, int p_stack_size) {
 	const GDScript *sptr=script.ptr();
 	while (sptr) {
 		const Map<StringName,GDFunction>::Element *E_ = sptr->member_functions.find(p_name);
 		if (E_) {
-			Ref<GDInlineFunctionObject> func = memnew(GDInlineFunctionObject);
+			Ref<GDLambdaFunctionObject> func = memnew(GDLambdaFunctionObject);
 			func->instance = const_cast<GDInstance*>(this);
 			const GDFunction *gdfunc = &E_->get();
 			func->function = const_cast<GDFunction*>(gdfunc);
 
-			for (int i = 0; i < gdfunc->inline_variants.size(); ++i) {
-				int idx = gdfunc->inline_variants[i];
+			for (int i = 0; i < gdfunc->lambda_variants.size(); ++i) {
+				int idx = gdfunc->lambda_variants[i];
 				if (p_stack_size <= idx) return NULL;
 				func->variants.push_back(Variant(p_stack[idx]));
 			}
-			inline_functions.push_back(func.ptr());
+			lambda_functions.push_back(func.ptr());
 			return Variant(func);
 		}
 		sptr = sptr->_base;
@@ -2717,8 +2717,8 @@ GDInstance::~GDInstance() {
 	for (Map<StringName, Ref<GDFunctionObject> >::Element *E = functions.front(); E ; E=E->next()) {
 		E->get()->enable = false;
 	}
-	for (int i = 0; i < inline_functions.size(); ++i) {
-		inline_functions[i]->enable = false;
+	for (int i = 0; i < lambda_functions.size(); ++i) {
+		lambda_functions[i]->enable = false;
 	}
 }
 

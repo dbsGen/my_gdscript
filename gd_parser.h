@@ -42,7 +42,7 @@ public:
 		enum Type {
 			TYPE_CLASS,
 			TYPE_FUNCTION,
-			TYPE_INLINE_FUNCTION,
+			TYPE_LAMBDA_FUNCTION,
 			TYPE_BUILT_IN_FUNCTION,
 			TYPE_BLOCK,
 			TYPE_IDENTIFIER,
@@ -127,7 +127,7 @@ public:
 
 	};
 
-	struct InlineFunctionNode : public FunctionNode {
+	struct LambdaFunctionNode : public FunctionNode {
 
 		FunctionNode *parent;
 		Vector<StringName> require_keys;
@@ -135,13 +135,13 @@ public:
 		_FORCE_INLINE_ void insert_require(StringName p_key) {
 			if (require_keys.find(p_key) < 0 && body->variables.find(p_key) < 0) {
 				require_keys.push_back(p_key);
-			}else if (InlineFunctionNode *func = dynamic_cast<InlineFunctionNode*>(parent)) {
+			}else if (LambdaFunctionNode *func = dynamic_cast<LambdaFunctionNode*>(parent)) {
 				func->insert_require(p_key);
 			}
 		}
 
 
-		InlineFunctionNode() { type=TYPE_INLINE_FUNCTION; _static=false; }
+		LambdaFunctionNode() { type=TYPE_LAMBDA_FUNCTION; _static=false; }
 	};
 
 	struct BlockNode : public Node {

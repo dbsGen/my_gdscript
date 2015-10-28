@@ -170,6 +170,7 @@ void GDParser::_make_completable_call(int p_arg) {
 	completion_line=tokenizer->get_token_line();
 	completion_argument=p_arg;
 	completion_block=current_block;
+	completion_found=true;
 	tokenizer->advance();
 
 }
@@ -190,6 +191,7 @@ bool GDParser::_get_completable_identifier(CompletionType p_type,StringName& ide
 		completion_function=current_function;
 		completion_line=tokenizer->get_token_line();
 		completion_block=current_block;
+		completion_found=true;
 		tokenizer->advance();
 
 		if (tokenizer->get_token()==GDTokenizer::TK_IDENTIFIER) {
@@ -1436,6 +1438,7 @@ GDParser::Node* GDParser::_reduce_expression(Node *p_node,bool p_to_const) {
 }
 
 GDParser::Node* GDParser::_parse_and_reduce_expression(Node *p_parent,bool p_static,bool p_reduce_const,bool p_allow_assign) {
+
 	Node* expr=_parse_expression(p_parent,p_static,p_allow_assign);
 	if (!expr || error_set)
 		return NULL;
@@ -1443,6 +1446,24 @@ GDParser::Node* GDParser::_parse_and_reduce_expression(Node *p_parent,bool p_sta
 	if (!expr || error_set)
 		return NULL;
 	return expr;
+}
+
+bool GDParser::_recover_from_completion() {
+
+	if (!completion_found) {
+		return false; //can't recover if no completion
+	}
+	//skip stuff until newline
+	while(tokenizer->get_token()!=GDTokenizer::TK_NEWLINE && tokenizer->get_token()!=GDTokenizer::TK_EOF && tokenizer->get_token()!=GDTokenizer::TK_ERROR) {
+		tokenizer->advance();
+	}
+	completion_found=false;
+	error_set=false;
+	if(tokenizer->get_token() == GDTokenizer::TK_ERROR){
+		error_set = true;
+	}
+
+	return true;
 }
 
 void GDParser::_parse_block(BlockNode *p_block,bool p_static) {
@@ -1542,8 +1563,14 @@ void GDParser::_parse_block(BlockNode *p_block,bool p_static) {
 					Node *subexpr=NULL;
 
 					subexpr = _parse_and_reduce_expression(p_block,p_static);
-					if (!subexpr)
+					if (!subexpr) {
+						if (_recover_from_completion()) {
+							break;
+						}
 						return;
+					}
+
+
 
 					lv->assign=subexpr;
 					assigned=subexpr;
@@ -1574,8 +1601,12 @@ void GDParser::_parse_block(BlockNode *p_block,bool p_static) {
 
 				tokenizer->advance();
 				Node *condition = _parse_and_reduce_expression(p_block,p_static);
-				if (!condition)
+				if (!condition) {
+					if (_recover_from_completion()) {
+						break;
+					}
 					return;
+				}
 
 				ControlFlowNode *cf_if = alloc_node<ControlFlowNode>();
 
@@ -1629,8 +1660,12 @@ void GDParser::_parse_block(BlockNode *p_block,bool p_static) {
 
 						//condition
 						Node *condition = _parse_and_reduce_expression(p_block,p_static);
-						if (!condition)
+						if (!condition) {
+							if (_recover_from_completion()) {
+								break;
+							}
 							return;
+						}
 						cf_else->arguments.push_back(condition);
 						cf_else->cf_type=ControlFlowNode::CF_IF;
 
@@ -1691,8 +1726,12 @@ void GDParser::_parse_block(BlockNode *p_block,bool p_static) {
 
 				tokenizer->advance();
 				Node *condition = _parse_and_reduce_expression(p_block,p_static);
-				if (!condition)
+				if (!condition) {
+					if (_recover_from_completion()) {
+						break;
+					}
 					return;
+				}
 
 				ControlFlowNode *cf_while = alloc_node<ControlFlowNode>();
 
@@ -1737,8 +1776,12 @@ void GDParser::_parse_block(BlockNode *p_block,bool p_static) {
 				tokenizer->advance();
 
 				Node *container = _parse_and_reduce_expression(p_block,p_static);
-				if (!container)
+				if (!container) {
+					if (_recover_from_completion()) {
+						break;
+					}
 					return;
+				}
 
 				ControlFlowNode *cf_for = alloc_node<ControlFlowNode>();
 
@@ -1803,8 +1846,12 @@ void GDParser::_parse_block(BlockNode *p_block,bool p_static) {
 				} else {
 					//expect expression
 					Node *retexpr = _parse_and_reduce_expression(p_block,p_static);
-					if (!retexpr)
+					if (!retexpr) {
+						if (_recover_from_completion()) {
+							break;
+						}
 						return;
+					}
 					cf_return->arguments.push_back(retexpr);
 					p_block->statements.push_back(cf_return);
 					if (!_end_statement()) {
@@ -1819,8 +1866,12 @@ void GDParser::_parse_block(BlockNode *p_block,bool p_static) {
 
 				tokenizer->advance();
 				Node *condition = _parse_and_reduce_expression(p_block,p_static);
-				if (!condition)
+				if (!condition) {
+					if (_recover_from_completion()) {
+						break;
+					}
 					return;
+				}
 				AssertNode *an = alloc_node<AssertNode>();
 				an->condition=condition;
 				p_block->statements.push_back(an);
@@ -1856,7 +1907,7 @@ void GDParser::_parse_block(BlockNode *p_block,bool p_static) {
 					op->arguments.push_back(id1);
 					op->arguments.push_back(node);
 					p_block->statements.push_back(op);
-				}
+					}
 			} break;
 			default: {
 				Node *expression = _parse_and_reduce_expression(p_block,p_static,false,true);
@@ -2460,6 +2511,16 @@ void GDParser::_parse_class(ClassNode *p_class) {
 								}; //fallthrough to use the same
 								case Variant::REAL: {
 
+									if (tokenizer->get_token()==GDTokenizer::TK_IDENTIFIER && tokenizer->get_token_identifier()=="EASE") {
+										current_export.hint=PROPERTY_HINT_EXP_EASING;
+										tokenizer->advance();
+										if (tokenizer->get_token()!=GDTokenizer::TK_PARENTHESIS_CLOSE) {
+											_set_error("Expected ')' in hint.");
+											return;
+										}
+										break;
+									}
+
 									float sign=1.0;
 
 									if (tokenizer->get_token()==GDTokenizer::TK_OP_SUB) {
@@ -2610,6 +2671,17 @@ void GDParser::_parse_class(ClassNode *p_class) {
 										}
 										break;
 									}
+
+									if (tokenizer->get_token()==GDTokenizer::TK_IDENTIFIER && tokenizer->get_token_identifier()=="MULTILINE") {
+
+										current_export.hint=PROPERTY_HINT_MULTILINE_TEXT;
+										tokenizer->advance();
+										if (tokenizer->get_token()!=GDTokenizer::TK_PARENTHESIS_CLOSE) {
+											_set_error("Expected ')' in hint.");
+											return;
+										}
+										break;
+									}
 								} break;
 								case Variant::COLOR: {
 
@@ -2646,23 +2718,16 @@ void GDParser::_parse_class(ClassNode *p_class) {
 					} else if (tokenizer->get_token()==GDTokenizer::TK_IDENTIFIER) {
 
 						String identifier = tokenizer->get_token_identifier();
-						if (identifier == "flag") {
-							current_export.type=Variant::INT;
-							current_export.hint=PROPERTY_HINT_ALL_FLAGS;
-						}else if (identifier == "multiline"){
-							current_export.type=Variant::STRING;
-							current_export.hint=PROPERTY_HINT_MULTILINE_TEXT;
-						} else {
-							if (!ObjectTypeDB::is_type(identifier,"Resource")) {
-	
-								current_export=PropertyInfo();
-								_set_error("Export hint not a type or resource.");
-							}
-	
-							current_export.type=Variant::OBJECT;
-							current_export.hint=PROPERTY_HINT_RESOURCE_TYPE;
-							current_export.hint_string=identifier;
+						if (!ObjectTypeDB::is_type(identifier,"Resource")) {
+
+							current_export=PropertyInfo();
+							_set_error("Export hint not a type or resource.");
 						}
+
+						current_export.type=Variant::OBJECT;
+						current_export.hint=PROPERTY_HINT_RESOURCE_TYPE;
+						current_export.hint_string=identifier;
+
 						tokenizer->advance();
 					}
 
@@ -2718,14 +2783,18 @@ void GDParser::_parse_class(ClassNode *p_class) {
 
 					Node *subexpr=NULL;
 
-					subexpr = _parse_and_reduce_expression(p_class,false);
-					if (!subexpr)
+					subexpr = _parse_and_reduce_expression(p_class,false,autoexport);
+					if (!subexpr) {
+						if (_recover_from_completion()) {
+							break;
+						}
 						return;
+					}
 
 					member.expression=subexpr;
 
 					if (autoexport) {
-						if (subexpr->type==Node::TYPE_ARRAY) {
+						if (1)/*(subexpr->type==Node::TYPE_ARRAY) {
 
 							member._export.type=Variant::ARRAY;
 
@@ -2733,7 +2802,7 @@ void GDParser::_parse_class(ClassNode *p_class) {
 
 							member._export.type=Variant::DICTIONARY;
 
-						} else {
+						} else*/ {
 
 							if (subexpr->type!=Node::TYPE_CONSTANT) {
 
@@ -2849,8 +2918,12 @@ void GDParser::_parse_class(ClassNode *p_class) {
 				Node *subexpr=NULL;
 
 				subexpr = _parse_and_reduce_expression(p_class,true,true);
-				if (!subexpr)
+				if (!subexpr) {
+					if (_recover_from_completion()) {
+						break;
+					}
 					return;
+				}
 
 				if (subexpr->type!=Node::TYPE_CONSTANT) {
 					_set_error("Expected constant expression");
@@ -2945,6 +3018,7 @@ Error GDParser::parse_bytecode(const Vector<uint8_t> &p_bytecode,const String& p
 	completion_class=NULL;
 	completion_function=NULL;
 	completion_block=NULL;
+	completion_found=false;
 	current_block=NULL;
 	current_class=NULL;
 	current_function=NULL;
@@ -2967,6 +3041,7 @@ Error GDParser::parse(const String& p_code, const String& p_base_path, bool p_ju
 	completion_class=NULL;
 	completion_function=NULL;
 	completion_block=NULL;
+	completion_found=false;
 	current_block=NULL;
 	current_class=NULL;
 
@@ -3009,6 +3084,8 @@ void GDParser::clear() {
 	completion_block=NULL;
 	current_block=NULL;
 	current_class=NULL;
+
+	completion_found=false;
 
 	current_function=NULL;
 

@@ -505,7 +505,6 @@ int GDCompiler::_parse_expression(CodeGen& codegen,const GDParser::Node *p_expre
 									return -1;
 								}
 								GDParser::IdentifierNode *id = static_cast<GDParser::IdentifierNode*>(on->arguments[i]);
-
 								ret=codegen.get_name_map_pos(id->name);
 
 							} else {
@@ -1234,8 +1233,8 @@ Error GDCompiler::_parse_function(GDScript *p_script,const GDParser::ClassNode *
 			stack_level += infunc->require_keys.size();
 		}
 	}
-	codegen.alloc_stack(stack_level);
 
+	codegen.alloc_stack(stack_level);
 
 	/* Parse initializer -if applies- */
 
@@ -1396,12 +1395,14 @@ Error GDCompiler::_parse_function(GDScript *p_script,const GDParser::ClassNode *
 	if (is_initializer)
 		p_script->initializer=gdfunc;
 
+
 	return OK;
 }
 
 
 
 Error GDCompiler::_parse_class(GDScript *p_script,GDScript *p_owner,const GDParser::ClassNode *p_class) {
+
 
 	p_script->native=Ref<GDNativeClass>();
 	p_script->base=Ref<GDScript>();
@@ -1416,6 +1417,7 @@ Error GDCompiler::_parse_class(GDScript *p_script,GDScript *p_owner,const GDPars
 	p_script->_owner=p_owner;
 	p_script->tool=p_class->tool;
 	p_script->name=p_class->name;
+
 
 	int index_from=0;
 	Ref<GDNativeClass> native;

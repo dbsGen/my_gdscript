@@ -34,9 +34,10 @@
 #include "io/resource_saver.h"
 #include "os/thread.h"
 #include "pair.h"
-
 class GDInstance;
 class GDScript;
+
+
 
 class GDFunction {
 public:
@@ -301,6 +302,7 @@ friend class GDScriptLanguage;
 	Ref<GDScript> base;
 	GDScript *_base; //fast pointer access
 	GDScript *_owner; //for subclasses
+
 	Set<StringName> members; //members are just indices to the instanced script.
 	Vector<StringName> function_indices;
 	Map<StringName,Variant> constants;
@@ -611,7 +613,7 @@ public:
 class ResourceFormatLoaderGDScript : public ResourceFormatLoader {
 public:
 
-	virtual RES load(const String &p_path,const String& p_original_path="");
+	virtual RES load(const String &p_path,const String& p_original_path="",Error *r_error=NULL);
 	virtual void get_recognized_extensions(List<String> *p_extensions) const;
 	virtual bool handles_type(const String& p_type) const;
 	virtual String get_resource_type(const String &p_path) const;

@@ -714,7 +714,11 @@ Variant GDFunction::call(GDInstance *p_instance, const Variant **p_args, int p_a
 
 				Variant::CallError err;
 				while(true) {
-					if (*methodname == StringName("connect") && argc > 1) {
+					String methodstr = *methodname;
+					if ((methodstr == "connect" ||
+							methodstr == "disconnect" ||
+							methodstr == "is_connected") &&
+							argc > 1) {
 						GDFunctionObject *func_object = ((Object *) (*argptrs[1]))->cast_to<GDFunctionObject>();
 						if (func_object && func_object->is_valid()) {
 							Variant **args = (Variant **)memalloc(sizeof(Variant*)*(argc+1));

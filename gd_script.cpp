@@ -560,34 +560,48 @@ Variant GDFunction::call(GDInstance *p_instance, const Variant **p_args, int p_a
 
 				CHECK_SPACE(3);
 
-				GET_VARIANT_PTR(src,1);
-				GET_VARIANT_PTR(dst,3);
+				GET_VARIANT_PTR(src, 1);
+				GET_VARIANT_PTR(dst, 3);
 
-				int indexname = _code_ptr[ip+2];
+				int indexname = _code_ptr[ip + 2];
 
-				ERR_BREAK(indexname<0 || indexname>=_global_names_count);
+				ERR_BREAK(indexname < 0 || indexname >= _global_names_count);
 				const StringName *index = &_global_names_ptr[indexname];
 
 				bool valid;
+				while (1) {
 #ifdef DEBUG_ENABLED
 //allow better error message in cases where src and dst are the same stack position
-				Variant ret = src->get_named(*index,&valid);
+					Variant ret = src->get_named(*index,&valid);
 
 #else
-				*dst = src->get_named(*index,&valid);
+					*dst = src->get_named(*index, &valid);
 #endif
 
-				if (!valid) {
-					if (src->has_method(*index)) {
-						err_text="Invalid get index '"+index->operator String()+"' (on base: '"+_get_var_type(src)+"'). Did you mean '."+index->operator String()+"()' ?";
-					} else {
-						err_text="Invalid get index '"+index->operator String()+"' (on base: '"+_get_var_type(src)+"').";
+					if (!valid) {
+						if (src->has_method(*index)) {
+							if (src->get_type() == Variant::Type::OBJECT &&
+								!(src->operator Object *())->get_script_instance()) {
+								Object *object = src->operator Object *();
+								GDInstance *instance = memnew(GDInstance);
+								object->set_script_instance(instance);
+								instance->owner = object;
+								continue;
+							}
+							err_text = "Invalid get index '" + index->operator String() + "' (on base: '" +
+									   _get_var_type(src) + "'). Did you mean '." + index->operator String() + "()' ?";
+						} else {
+							err_text = "Invalid get index '" + index->operator String() + "' (on base: '" +
+									   _get_var_type(src) + "').";
+						}
+						break;
 					}
+#ifdef DEBUG_ENABLED
+					*dst=ret;
+#endif
 					break;
 				}
-#ifdef DEBUG_ENABLED
-				*dst=ret;
-#endif
+				if (!valid) break;
 				ip+=4;
 			} continue;
 			case OPCODE_ASSIGN: {
@@ -1480,7 +1494,10 @@ bool GDFunctionObject::is_valid() const {
 
 Variant GDFunctionObject::apply(const Variant **p_args, int p_argcount, Variant::CallError &r_error) {
 
-	ERR_FAIL_COND_V(!enable, Variant());
+	if (!enable) {
+		r_error.error = Variant::CallError::CALL_ERROR_INSTANCE_IS_NULL;
+		return Variant();
+	}
 
 	return function->call(instance, p_args, p_argcount, r_error, NULL);
 }
@@ -1506,13 +1523,19 @@ void GDFunctionObject::_bind_methods() {
 }
 
 Variant GDNativeFunctionObject::apply(const Variant **p_args, int p_argcount, Variant::CallError &r_error) {
-	ERR_FAIL_COND_V(!enable, Variant());
+	if (!enable) {
+		r_error.error = Variant::CallError::CALL_ERROR_INSTANCE_IS_NULL;
+		return Variant();
+	}
 
 	return instance->owner->call(method_name, p_args, p_argcount, r_error);
 }
 
 Variant GDLambdaFunctionObject::apply(const Variant **p_args, int p_argcount, Variant::CallError &r_error) {
-	ERR_FAIL_COND_V(!enable, Variant());
+	if (!enable) {
+		r_error.error = Variant::CallError::CALL_ERROR_INSTANCE_IS_NULL;
+		return Variant();
+	}
 
 	int t = variants.size();
 	const Variant **v_vars = (const Variant**)memalloc(t * sizeof(Variant*));
@@ -1521,7 +1544,7 @@ Variant GDLambdaFunctionObject::apply(const Variant **p_args, int p_argcount, Va
 	}
 
 	Variant ret = function->call(instance, p_args, p_argcount, r_error, NULL, v_vars);
-	memdelete(v_vars);
+	memfree(v_vars);
 	return ret;
 }
 
@@ -2360,8 +2383,6 @@ bool GDInstance::set(const StringName& p_name, const Variant& p_value) {
 
 bool GDInstance::get(const StringName& p_name, Variant &r_ret) const {
 
-
-
 	const GDScript *sptr=script.ptr();
 	while(sptr) {
 
@@ -2405,16 +2426,14 @@ bool GDInstance::get(const StringName& p_name, Variant &r_ret) const {
 				}
 			}
 		}
-		{
-			Ref<GDFunctionObject> func = const_cast<GDInstance*>(this)->get_function(p_name);
-			if (func != NULL) {
-				r_ret = Variant(func);
-				return true;
-			}
-		}
 		sptr = sptr->_base;
 	}
 
+	Ref<GDFunctionObject> func = const_cast<GDInstance*>(this)->get_function(p_name);
+	if (func != NULL) {
+		r_ret = Variant(func);
+		return true;
+	}
 	return false;
 
 }

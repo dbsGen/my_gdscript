@@ -230,6 +230,7 @@ protected:
 public:
 	bool is_valid() const;
 
+
 	_FORCE_INLINE_ virtual StringName get_name() const { return function->get_name(); }
 	virtual Variant applyv(const Array p_args);
 	virtual Variant apply(const Variant** p_args,int p_argcount,Variant::CallError &r_error);
